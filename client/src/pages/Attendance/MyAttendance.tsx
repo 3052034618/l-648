@@ -12,7 +12,8 @@ import {
   Empty,
   Statistic,
   DatePicker,
-  Select
+  Select,
+  message
 } from 'antd'
 import {
   CheckCircleOutlined,
@@ -26,7 +27,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
-import { attendanceApi, scheduleApi } from '../../api'
+import { attendanceApi, scheduleApi } from '../../services/api'
 import type { Attendance, Schedule } from '../../types'
 
 const { Title, Text } = Typography
@@ -51,8 +52,8 @@ const MyAttendance: React.FC = () => {
       let filtered = result.items
       if (dateRange && dateRange[0] && dateRange[1]) {
         filtered = filtered.filter((a) => {
-          const date = dayjs(a.createdAt)
-          return date.isAfter(dateRange[0]) && date.isBefore(dateRange[1])
+          const date = dayjs(a.createdAt || a.checkInTime)
+          return date.isAfter(dateRange[0]!) && date.isBefore(dateRange[1]!.add(1, 'day'))
         })
       }
       if (statusFilter) {
@@ -61,44 +62,8 @@ const MyAttendance: React.FC = () => {
       setAttendances(filtered)
     } catch (error) {
       console.error('Failed to fetch attendances:', error)
-      const mockAttendances: Attendance[] = []
-      for (let i = 0; i < 15; i++) {
-        const date = dayjs().subtract(i, 'day')
-        const statuses: ('PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE_EARLY')[] = ['PRESENT', 'PRESENT', 'PRESENT', 'LATE', 'LEAVE_EARLY', 'ABSENT']
-        const status = statuses[i % 6]
-        mockAttendances.push({
-          id: i + 1,
-          scheduleId: i + 1,
-          volunteerProfileId: 1,
-          checkInTime: status !== 'ABSENT' ? date.hour(9).minute(i * 5).toISOString() : undefined,
-          checkOutTime: status !== 'ABSENT' && status !== 'LEAVE_EARLY' ? date.hour(12).toISOString() : status === 'LEAVE_EARLY' ? date.hour(11).minute(30).toISOString() : undefined,
-          serviceHours: status === 'PRESENT' ? 3 : status === 'LATE' ? 2.5 : status === 'LEAVE_EARLY' ? 2.5 : 0,
-          status,
-          pointsEarned: status === 'PRESENT' ? 30 : status === 'LATE' ? 25 : status === 'LEAVE_EARLY' ? 25 : 0,
-          schedule: {
-            id: i + 1,
-            projectId: 1,
-            scheduledDate: date.format('YYYY-MM-DD'),
-            startTime: '09:00',
-            endTime: '12:00',
-            status: 'CONFIRMED',
-            volunteerProfileId: 1,
-            project: {
-              id: 1,
-              title: i % 2 === 0 ? '社区环保志愿活动' : '图书馆志愿服务',
-              category: i % 2 === 0 ? '环保' : '教育',
-              location: i % 2 === 0 ? '北京市朝阳区' : '北京市海淀区'
-            } as any,
-            volunteerProfile: {} as any,
-            createdAt: date.format('YYYY-MM-DD'),
-            updatedAt: date.format('YYYY-MM-DD')
-          },
-          volunteerProfile: {} as any,
-          createdAt: date.format('YYYY-MM-DD'),
-          updatedAt: date.format('YYYY-MM-DD')
-        })
-      }
-      setAttendances(mockAttendances)
+      message.error('获取签到记录失败，请稍后重试')
+      setAttendances([])
     } finally {
       setLoading(false)
     }
@@ -152,11 +117,17 @@ const MyAttendance: React.FC = () => {
 
   const monthlyStats = Array.from({ length: 6 }, (_, i) => {
     const month = dayjs().subtract(5 - i, 'month')
+    const monthStart = month.startOf('month')
+    const monthEnd = month.endOf('month')
+    const monthAttendances = attendances.filter((a) => {
+      const d = dayjs(a.checkInTime || a.createdAt)
+      return d.isAfter(monthStart) && d.isBefore(monthEnd)
+    })
     return {
       month: month.format('MM月'),
-      present: Math.floor(Math.random() * 10) + 15,
-      late: Math.floor(Math.random() * 3),
-      absent: Math.floor(Math.random() * 2)
+      present: monthAttendances.filter((a) => a.status === 'PRESENT').length,
+      late: monthAttendances.filter((a) => a.status === 'LATE').length,
+      absent: monthAttendances.filter((a) => a.status === 'ABSENT').length
     }
   })
 

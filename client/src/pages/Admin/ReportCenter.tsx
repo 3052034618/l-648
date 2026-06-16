@@ -115,8 +115,7 @@ const ReportCenter: React.FC = () => {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: '导出失败' }))
-        throw new Error(errorData.error || `导出失败 (${response.status})`)
+        throw new Error('export failed')
       }
 
       const blob = await response.blob()
@@ -141,7 +140,7 @@ const ReportCenter: React.FC = () => {
       fetchReports(pagination.current, pagination.pageSize)
     } catch (error: any) {
       console.error('Failed to export report:', error)
-      message.error(error?.message || '导出失败，请稍后重试')
+      message.error('导出失败，请稍后重试')
     }
   }
 
@@ -156,8 +155,7 @@ const ReportCenter: React.FC = () => {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: '下载失败' }))
-        throw new Error(errorData.error || `下载失败 (${response.status})`)
+        throw new Error('download failed')
       }
 
       const blob = await response.blob()
@@ -181,7 +179,7 @@ const ReportCenter: React.FC = () => {
       message.success('文件下载成功')
     } catch (error: any) {
       console.error('Failed to download report:', error)
-      message.error(error?.message || '下载失败，请稍后重试')
+      message.error('下载失败，请稍后重试')
     }
   }
 

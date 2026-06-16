@@ -50,8 +50,60 @@ router.post('/', authenticate, requireProjectManager, async (req: AuthenticatedR
 })
 
 router.get('/me/managed', authenticate, requireProjectManager, async (req: AuthenticatedRequest, res: Response) => {
-  const result = await getMyProjects(req.user!.id)
-  res.status(result.success ? 200 : 400).json(result)
+  try {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1
+    const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 100
+
+    const managerProfile = await prisma.projectManagerProfile.findUnique({
+      where: { userId: req.user!.id }
+    })
+
+    if (!managerProfile) {
+      return res.status(403).json({
+        success: false,
+        error: '项目负责人资料不存在'
+      })
+    }
+
+    const where = { projectManagerId: managerProfile.id }
+
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          requiredSkills: {
+            include: { skill: true }
+          },
+          _count: {
+            select: {
+              applications: true,
+              schedules: true
+            }
+          }
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      }),
+      prisma.project.count({ where })
+    ])
+
+    res.json({
+      success: true,
+      data: {
+        items: projects,
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize)
+      }
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: '获取我的项目失败'
+    })
+  }
 })
 
 router.get('/me/applied', authenticate, requireVolunteer, async (req: AuthenticatedRequest, res: Response) => {

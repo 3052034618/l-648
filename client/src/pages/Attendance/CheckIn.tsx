@@ -29,7 +29,6 @@ import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { attendanceApi, scheduleApi } from '../../services/api'
-import { useAuthStore } from '../../store'
 import type { Schedule, Attendance } from '../../types'
 
 const { Title, Text } = Typography
@@ -56,7 +55,6 @@ const CheckIn: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const scheduleId = searchParams.get('scheduleId')
-  const user = useAuthStore((state) => state.user)
   const [loading, setLoading] = useState(true)
   const [schedule, setSchedule] = useState<Schedule | null>(null)
   const [attendance, setAttendance] = useState<Attendance | null>(null)
@@ -138,18 +136,18 @@ const CheckIn: React.FC = () => {
         const s = await scheduleApi.getScheduleById(parseInt(scheduleId))
         setSchedule(s)
 
-        const attendances = await attendanceApi.getAttendances({ page: 1, pageSize: 100, scheduleId: parseInt(scheduleId) })
-        const existingAttendance = attendances.items.find(
-          (a) => a.volunteerProfile?.user?.id === user?.id
-        )
+        const existingAttendance = await attendanceApi.getAttendanceByScheduleId(parseInt(scheduleId))
         if (existingAttendance) {
           setAttendance(existingAttendance)
+        } else {
+          setAttendance(null)
         }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
       message.error('获取排班信息失败，请稍后重试')
       setSchedule(null)
+      setAttendance(null)
     } finally {
       setLoading(false)
     }
@@ -216,11 +214,13 @@ const CheckIn: React.FC = () => {
   }
 
   const handleCheckOut = async () => {
-    if (!attendance?.id || !currentLocation) return
+    if (!currentLocation) return
 
     setCheckOutLoading(true)
     try {
-      const result = await attendanceApi.checkOut(attendance.id, {
+      const result = await attendanceApi.checkOut({
+        scheduleId: schedule?.id,
+        attendanceId: attendance?.id,
         latitude: currentLocation[0],
         longitude: currentLocation[1]
       })

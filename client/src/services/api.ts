@@ -230,7 +230,7 @@ export const scheduleApi = {
 
 export const attendanceApi = {
   getAttendances: async (params?: PaginationParams & { scheduleId?: number; status?: string }): Promise<PaginationResult<Attendance>> => {
-    const response = await api.get<ApiResponse<PaginationResult<Attendance>>>('/attendances', { params })
+    const response = await api.get<ApiResponse<PaginationResult<Attendance>>>('/attendances/me', { params })
     return handleResponse(response)
   },
 
@@ -239,13 +239,18 @@ export const attendanceApi = {
     return handleResponse(response)
   },
 
+  getAttendanceByScheduleId: async (scheduleId: number): Promise<Attendance | null> => {
+    const response = await api.get<ApiResponse<Attendance | null>>(`/attendances/schedule/${scheduleId}`)
+    return handleResponse(response)
+  },
+
   checkIn: async (data: AttendanceCheckInData): Promise<Attendance> => {
     const response = await api.post<ApiResponse<Attendance>>('/attendances/check-in', data)
     return handleResponse(response)
   },
 
-  checkOut: async (id: number, data: { latitude: number; longitude: number }): Promise<Attendance> => {
-    const response = await api.post<ApiResponse<Attendance>>(`/attendances/${id}/check-out`, data)
+  checkOut: async (data: { attendanceId?: number; scheduleId?: number; latitude: number; longitude: number }): Promise<Attendance> => {
+    const response = await api.post<ApiResponse<Attendance>>('/attendances/check-out', data)
     return handleResponse(response)
   },
 
@@ -255,7 +260,7 @@ export const attendanceApi = {
   },
 
   getMyAttendances: async (params?: PaginationParams): Promise<PaginationResult<Attendance>> => {
-    const response = await api.get<ApiResponse<PaginationResult<Attendance>>>('/attendances/my', { params })
+    const response = await api.get<ApiResponse<PaginationResult<Attendance>>>('/attendances/me', { params })
     return handleResponse(response)
   },
 }
