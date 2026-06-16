@@ -184,6 +184,16 @@ export const projectApi = {
     const response = await api.put<ApiResponse<ProjectApplication>>(`/projects/${projectId}/applications/${applicationId}`, { status })
     return handleResponse(response)
   },
+
+  getRecommendedProjects: async (limit: number = 10): Promise<any[]> => {
+    const response = await api.get<ApiResponse<any[]>>('/projects/me/recommendations', { params: { limit } })
+    return handleResponse(response)
+  },
+
+  getMatchVolunteers: async (projectId: number, limit: number = 20): Promise<any[]> => {
+    const response = await api.get<ApiResponse<any[]>>(`/projects/${projectId}/match-volunteers`, { params: { limit } })
+    return handleResponse(response)
+  },
 }
 
 export const scheduleApi = {

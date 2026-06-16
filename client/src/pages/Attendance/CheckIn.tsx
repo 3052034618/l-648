@@ -94,6 +94,19 @@ const CheckIn: React.FC = () => {
   }, [scheduleId])
 
   useEffect(() => {
+    if (schedule?.project?.latitude && schedule?.project?.longitude && currentLocation) {
+      const d = calculateDistance(
+        currentLocation[0],
+        currentLocation[1],
+        schedule.project.latitude,
+        schedule.project.longitude
+      )
+      setDistance(d)
+      setWithinRange(d <= SIGN_IN_RANGE)
+    }
+  }, [schedule, currentLocation])
+
+  useEffect(() => {
     const updateCountdown = () => {
       if (!scheduleStartTime || !scheduleEndTime) return
       
@@ -176,16 +189,6 @@ const CheckIn: React.FC = () => {
           const lng = position.coords.longitude
           setCurrentLocation([lat, lng])
           setLocationError(null)
-          if (schedule?.project?.latitude && schedule?.project?.longitude) {
-            const d = calculateDistance(
-              lat,
-              lng,
-              schedule.project.latitude,
-              schedule.project.longitude
-            )
-            setDistance(d)
-            setWithinRange(d <= SIGN_IN_RANGE)
-          }
         },
         (error) => {
           setLocationError('无法获取您的位置，请检查浏览器定位权限')

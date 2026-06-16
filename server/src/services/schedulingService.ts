@@ -47,33 +47,39 @@ export async function generateSchedule(
 
     const requiredSkillIds = project.requiredSkills.map(rs => rs.skillId)
     const requiredTrainingIds = project.requiredTrainingIds
+    const hasSkillRequirements = requiredSkillIds.length > 0
 
     const dayOfWeekStart = startDate.getDay()
     const dayOfWeekEnd = endDate.getDay()
 
-    const volunteers = await prisma.volunteerProfile.findMany({
-      where: {
-        user: {
-          creditScore: {
-            gte: 60
-          }
-        },
-        skills: {
-          some: {
-            skillId: {
-              in: requiredSkillIds
-            }
-          }
-        },
-        availability: {
-          some: {
-            dayOfWeek: {
-              gte: Math.min(dayOfWeekStart, dayOfWeekEnd),
-              lte: Math.max(dayOfWeekStart, dayOfWeekEnd)
-            }
-          }
+    const volunteerWhere: any = {
+      user: {
+        creditScore: {
+          gte: 60
         }
       },
+      availability: {
+        some: {
+          dayOfWeek: {
+            gte: Math.min(dayOfWeekStart, dayOfWeekEnd),
+            lte: Math.max(dayOfWeekStart, dayOfWeekEnd)
+          }
+        }
+      }
+    }
+
+    if (hasSkillRequirements) {
+      volunteerWhere.skills = {
+        some: {
+          skillId: {
+            in: requiredSkillIds
+          }
+        }
+      }
+    }
+
+    const volunteers = await prisma.volunteerProfile.findMany({
+      where: volunteerWhere,
       include: {
         user: {
           select: {
@@ -129,13 +135,17 @@ export async function generateSchedule(
       let skillMatchScore = 0
       const matchingSkills: number[] = []
 
-      projectSkills.forEach(ps => {
-        const vs = volunteerSkills.find(v => v.skillId === ps.skillId)
-        if (vs && vs.proficiency >= ps.minProficiency) {
-          skillMatchScore += (vs.proficiency / 5) * (1 / projectSkills.length) * 100
-          matchingSkills.push(ps.skillId)
-        }
-      })
+      if (hasSkillRequirements) {
+        projectSkills.forEach(ps => {
+          const vs = volunteerSkills.find(v => v.skillId === ps.skillId)
+          if (vs && vs.proficiency >= ps.minProficiency) {
+            skillMatchScore += (vs.proficiency / 5) * (1 / projectSkills.length) * 100
+            matchingSkills.push(ps.skillId)
+          }
+        })
+      } else {
+        skillMatchScore = 100
+      }
 
       const reviews = volunteer.reviewsReceived
       const avgRating = reviews.length > 0
@@ -151,7 +161,12 @@ export async function generateSchedule(
       const presentCount = attendances.filter(a => a.status === AttendanceStatus.PRESENT || a.status === AttendanceStatus.LATE).length
       const attendanceScore = totalAttendance > 0 ? (presentCount / totalAttendance) * 100 : 100
 
-      const totalScore = (skillMatchScore * 0.4) + (ratingScore * 0.3) + (serviceHoursScore * 0.2) + (attendanceScore * 0.1)
+      let totalScore: number
+      if (hasSkillRequirements) {
+        totalScore = (skillMatchScore * 0.4) + (ratingScore * 0.3) + (serviceHoursScore * 0.2) + (attendanceScore * 0.1)
+      } else {
+        totalScore = (ratingScore * 0.35) + (serviceHoursScore * 0.25) + (attendanceScore * 0.25) + (volunteer.user.creditScore / 100) * 100 * 0.15
+      }
 
       return {
         volunteerProfileId: volunteer.id,
@@ -175,15 +190,40 @@ export async function generateSchedule(
     while (currentDate <= endDate) {
       const dayOfWeek = currentDate.getDay()
 
-      for (const requiredSkill of project.requiredSkills) {
-        for (let i = 0; i < requiredSkill.requiredCount; i++) {
-          const availableVolunteer = scoredVolunteers.find(v =>
-            !assignedVolunteers.has(v.volunteerProfileId) &&
-            v.matchingSkills.includes(requiredSkill.skillId)
-          )
+      const availableTodayVolunteers = scoredVolunteers.filter(v => {
+        const volunteer = trainedVolunteers.find(tv => tv.id === v.volunteerProfileId)
+        return volunteer?.availability.some(a => a.dayOfWeek === dayOfWeek)
+      })
+
+      let slotsToFill: Array<{ skillId?: number; count: number }> = []
+
+      if (hasSkillRequirements) {
+        slotsToFill = project.requiredSkills.map(rs => ({
+          skillId: rs.skillId,
+          count: rs.requiredCount
+        }))
+      } else {
+        const dailySlots = Math.min(project.maxParticipants, availableTodayVolunteers.length, 10)
+        slotsToFill = [{ count: dailySlots }]
+      }
+
+      for (const slot of slotsToFill) {
+        for (let i = 0; i < slot.count; i++) {
+          let availableVolunteer: VolunteerScore | undefined
+
+          if (slot.skillId) {
+            availableVolunteer = availableTodayVolunteers.find(v =>
+              !assignedVolunteers.has(v.volunteerProfileId) &&
+              v.matchingSkills.includes(slot.skillId!)
+            )
+          } else {
+            availableVolunteer = availableTodayVolunteers.find(v =>
+              !assignedVolunteers.has(v.volunteerProfileId)
+            )
+          }
 
           if (availableVolunteer) {
-            const volunteer = trainedVolunteers.find(v => v.id === availableVolunteer.volunteerProfileId)
+            const volunteer = trainedVolunteers.find(v => v.id === availableVolunteer!.volunteerProfileId)
             const availability = volunteer?.availability.find(a => a.dayOfWeek === dayOfWeek)
 
             if (availability) {

@@ -8,6 +8,7 @@ interface MatchResult {
   timeMatch: number
   trainingMatch: boolean
   creditMatch: boolean
+  canApply: boolean
   details: {
     skillMatches: Array<{
       skillId: number
@@ -21,6 +22,7 @@ interface MatchResult {
     creditScore: number
     historicalRating: number
     activityScore: number
+    reasons: string[]
   }
 }
 
@@ -258,24 +260,79 @@ export async function matchProjectsForVolunteer(volunteerProfileId: number, limi
       const trainingMatch = await checkTrainingMatch(volunteerProfileId, project.requiredTrainingIds, project.level)
       const creditMatch = volunteer.user.creditScore >= minCreditScore
 
-      if (!creditMatch) continue
+      const reasons: string[] = []
 
-      const matchScore = skillMatch.score * 0.4 + timeMatch.score * 0.3 + historicalRating * 0.2 + activityScore * 0.1
+      if (skillMatch.score >= 80) {
+        const matchedSkillNames = skillMatch.details.filter(s => s.matched).map(s => s.skillName)
+        if (matchedSkillNames.length > 0) {
+          reasons.push(`技能高度匹配：${matchedSkillNames.slice(0, 3).join('、')}`)
+        }
+      } else if (skillMatch.score >= 50) {
+        reasons.push('部分技能匹配')
+      } else if (project.requiredSkills.length === 0) {
+        reasons.push('无特殊技能要求，适合参与')
+      }
+
+      if (timeMatch.score >= 70) {
+        reasons.push(`时间匹配度高，可覆盖 ${timeMatch.overlapDays} 天`)
+      } else if (timeMatch.score >= 40) {
+        reasons.push('部分时间匹配')
+      }
+
+      if (trainingMatch.matched) {
+        reasons.push('已满足培训要求')
+      } else {
+        reasons.push(`需先完成培训：${trainingMatch.missingTrainings[0]}等`)
+      }
+
+      if (creditMatch) {
+        reasons.push('信用分达标')
+      }
+
+      if (historicalRating >= 80) {
+        reasons.push('历史评价优秀')
+      }
+
+      const advancedCreditThreshold = await prisma.creditThreshold.findFirst({
+        where: {
+          isActive: true,
+          restriction: { contains: '高级项目' }
+        }
+      })
+      const advancedMinCredit = advancedCreditThreshold?.minCreditScore || 80
+
+      const canApply = creditMatch &&
+        (project.level === ProjectLevel.BASIC ||
+         project.level === ProjectLevel.INTERMEDIATE ||
+         (project.level === ProjectLevel.ADVANCED &&
+          trainingMatch.matched &&
+          volunteer.user.creditScore >= advancedMinCredit))
+
+      const trainingScore = trainingMatch.matched ? 100 : 30
+
+      const matchScore = skillMatch.score * 0.35 +
+        timeMatch.score * 0.25 +
+        historicalRating * 0.15 +
+        activityScore * 0.1 +
+        trainingScore * 0.15 +
+        (creditMatch ? 100 : 0) * 0.15
 
       matchResults.push({
         id: project.id,
-        matchScore: Math.round(matchScore * 100) / 100,
-        skillMatch: Math.round(skillMatch.score * 100) / 100,
-        timeMatch: Math.round(timeMatch.score * 100) / 100,
+        matchScore: Math.round(Math.min(matchScore, 100) * 10) / 10,
+        skillMatch: Math.round(skillMatch.score * 10) / 10,
+        timeMatch: Math.round(timeMatch.score * 10) / 10,
         trainingMatch: trainingMatch.matched,
         creditMatch,
+        canApply,
         details: {
           skillMatches: skillMatch.details,
           timeOverlap: timeMatch.overlapDays,
           missingTrainings: trainingMatch.missingTrainings,
           creditScore: volunteer.user.creditScore,
-          historicalRating: Math.round(historicalRating * 100) / 100,
-          activityScore: Math.round(activityScore * 100) / 100
+          historicalRating: Math.round(historicalRating * 10) / 10,
+          activityScore: Math.round(activityScore * 10) / 10,
+          reasons
         },
         project
       })

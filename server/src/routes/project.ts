@@ -15,6 +15,7 @@ import {
   applyProject,
   reviewApplication
 } from '../controllers/projectController'
+import { matchProjectsForVolunteer, matchVolunteersForProject } from '../services/projectMatcherService'
 
 const router = Router()
 
@@ -66,6 +67,39 @@ router.get('/me/applied', authenticate, requireVolunteer, async (req: Authentica
   }
 
   const result = await getAppliedProjects(profile.id)
+  res.status(result.success ? 200 : 400).json(result)
+})
+
+router.get('/me/recommendations', authenticate, requireVolunteer, async (req: AuthenticatedRequest, res: Response) => {
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
+
+  const profile = await prisma.volunteerProfile.findUnique({
+    where: { userId: req.user!.id }
+  })
+
+  if (!profile) {
+    return res.status(404).json({
+      success: false,
+      error: '志愿者资料不存在'
+    })
+  }
+
+  const result = await matchProjectsForVolunteer(profile.id, limit)
+  res.status(result.success ? 200 : 400).json(result)
+})
+
+router.get('/:id/match-volunteers', authenticate, requireProjectManager, async (req: AuthenticatedRequest, res: Response) => {
+  const projectId = parseInt(req.params.id)
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 20
+
+  if (isNaN(projectId)) {
+    return res.status(400).json({
+      success: false,
+      error: '无效的项目ID'
+    })
+  }
+
+  const result = await matchVolunteersForProject(projectId, limit)
   res.status(result.success ? 200 : 400).json(result)
 })
 

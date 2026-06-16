@@ -241,6 +241,7 @@ const ExamPage: React.FC = () => {
   const handleSubmit = async () => {
     if (!exam || !examRecord) return
     setSubmitting(true)
+    setShowConfirmModal(false)
 
     try {
       const examAnswers: ExamAnswer[] = Object.entries(answers).map(([questionId, answer]) => ({
@@ -248,36 +249,20 @@ const ExamPage: React.FC = () => {
         answer: Array.isArray(answer) ? answer.join(',') : answer
       }))
 
-      await examApi.submitExam(exam.id, { examId: exam.id, answers: examAnswers })
-
-      const score = calculateScore()
-      const passed = score >= exam.passScore
+      const result = await examApi.submitExam(exam.id, { examId: exam.id, answers: examAnswers })
 
       setExamRecord(prev => prev ? {
         ...prev,
-        answers,
-        score,
-        status: passed ? 'PASSED' : 'FAILED',
-        submittedAt: dayjs().toISOString()
+        ...result,
+        answers
       } : null)
 
       setExamSubmitted(true)
-      message.success(passed ? `恭喜！您已通过考试，得分：${score}分` : `很遗憾，您未通过考试，得分：${score}分`)
-    } catch (error) {
+      const passed = result.status === 'PASSED' || result.score >= exam.passScore
+      message.success(passed ? `恭喜！您已通过考试，得分：${result.score}分` : `很遗憾，您未通过考试，得分：${result.score}分`)
+    } catch (error: any) {
       console.error('Failed to submit exam:', error)
-      const score = calculateScore()
-      const passed = score >= exam.passScore
-
-      setExamRecord(prev => prev ? {
-        ...prev,
-        answers,
-        score,
-        status: passed ? 'PASSED' : 'FAILED',
-        submittedAt: dayjs().toISOString()
-      } : null)
-
-      setExamSubmitted(true)
-      message.success(passed ? `恭喜！您已通过考试，得分：${score}分` : `很遗憾，您未通过考试，得分：${score}分`)
+      message.error(error?.response?.data?.message || error?.message || '考试提交失败，请稍后重试')
     } finally {
       setSubmitting(false)
     }

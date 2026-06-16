@@ -127,23 +127,9 @@ const ReportCenter: React.FC = () => {
       await adminApi.generateMonthlyReport(monthStr)
       message.success(`已生成 ${monthStr} 月度报表`)
       fetchReports(pagination.current, pagination.pageSize)
-    } catch (error) {
-      message.error('生成报表失败，使用模拟数据')
-      const newReport: MonthlyReport = {
-        id: Math.max(...reports.map((r) => r.id), 0) + 1,
-        reportMonth: monthStr,
-        totalVolunteers: 500 + Math.floor(Math.random() * 100),
-        totalProjects: 40 + Math.floor(Math.random() * 20),
-        totalServiceHours: 8000 + Math.floor(Math.random() * 2000),
-        totalPointsDistributed: 40000 + Math.floor(Math.random() * 10000),
-        projects: [],
-        status: 'GENERATED',
-        createdAt: new Date().toISOString(),
-        generatedAt: new Date().toISOString(),
-      }
-      setReports([newReport, ...reports])
-      setPagination({ ...pagination, total: pagination.total + 1 })
-      message.success(`已生成 ${monthStr} 月度报表（模拟）`)
+    } catch (error: any) {
+      console.error('Failed to generate report:', error)
+      message.error(error?.response?.data?.message || error?.message || '生成报表失败，请稍后重试')
     } finally {
       setGenerating(false)
     }
@@ -157,15 +143,9 @@ const ReportCenter: React.FC = () => {
         window.open(result.filePath, '_blank')
       }
       fetchReports(pagination.current, pagination.pageSize)
-    } catch (error) {
-      message.error('导出成功（模拟）')
-      setReports(
-        reports.map((r) =>
-          r.id === id
-            ? { ...r, status: 'EXPORTED', exportedAt: new Date().toISOString(), filePath: `/reports/${id}.xlsx` }
-            : r
-        )
-      )
+    } catch (error: any) {
+      console.error('Failed to export report:', error)
+      message.error(error?.response?.data?.message || error?.message || '导出失败，请稍后重试')
     }
   }
 
