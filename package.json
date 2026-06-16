@@ -1,0 +1,22 @@
+{
+  "name": "volunteer-management-platform",
+  "version": "1.0.0",
+  "description": "大型城市志愿者综合管理平台",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build": "npm run build -w server && npm run build -w client",
+    "test": "npm run test -w server && npm run test -w client",
+    "db:generate": "npm run db:generate -w server",
+    "db:migrate": "npm run db:migrate -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

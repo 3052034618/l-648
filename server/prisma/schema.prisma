@@ -1,0 +1,472 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VOLUNTEER
+  PROJECT_MANAGER
+  ADMIN
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectLevel {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum ScheduleStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PENDING
+  PRESENT
+  ABSENT
+  LATE
+  LEAVE_EARLY
+}
+
+enum NotificationType {
+  TASK_ASSIGNMENT
+  ATTENDANCE_ABNORMAL
+  TRAINING_PASSED
+  TRAINING_FAILED
+  POINTS_CHANGED
+  CREDIT_CHANGED
+  SCHEDULE_UPDATED
+  PROJECT_CREATED
+  EXAM_REMINDER
+  SYSTEM_ANNOUNCEMENT
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum TrainingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum ExamStatus {
+  NOT_TAKEN
+  PASSED
+  FAILED
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATED
+  EXPORTED
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  username        String           @unique
+  email           String           @unique
+  passwordHash    String
+  realName        String
+  phone           String           @unique
+  idCard          String?          @unique
+  avatar          String?
+  role            Role
+  creditScore     Int              @default(100)
+  totalPoints     Int              @default(0)
+  totalServiceHours Float          @default(0)
+  volunteerProfile VolunteerProfile?
+  managerProfile  ProjectManagerProfile?
+  notifications   Notification[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  refreshTokens   RefreshToken[]
+  creditRecords   CreditRecord[]
+}
+
+model VolunteerProfile {
+  id              Int              @id @default(autoincrement())
+  userId          Int              @unique
+  user            User             @relation(fields: [userId], references: [id])
+  skills          VolunteerSkill[]
+  availability    Availability[]
+  emergencyContact String?
+  emergencyPhone  String?
+  starRating      Float            @default(0)
+  ratingCount     Int              @default(0)
+  schedules       Schedule[]
+  attendances     Attendance[]     @relation("VolunteerAttendances")
+  trainingRecords TrainingRecord[]
+  examRecords     ExamRecord[]
+  pointsRecords   PointsRecord[]
+  reviewsReceived Review[]
+  projectApplications ProjectApplication[]
+  exchangeRecords ExchangeRecord[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ProjectManagerProfile {
+  id              Int              @id @default(autoincrement())
+  userId          Int              @unique
+  user            User             @relation(fields: [userId], references: [id])
+  organization    String
+  position        String
+  managedProjects Project[]
+  reviewsGiven    Review[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Skill {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  category        String
+  description     String?
+  volunteers      VolunteerSkill[]
+  projectRequiredSkills ProjectRequiredSkill[]
+  createdAt       DateTime         @default(now())
+}
+
+model VolunteerSkill {
+  id              Int              @id @default(autoincrement())
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  skillId         Int
+  skill           Skill            @relation(fields: [skillId], references: [id])
+  proficiency     Int              @default(1)
+  certificateUrl  String?
+  createdAt       DateTime         @default(now())
+  @@unique([volunteerProfileId, skillId])
+}
+
+model Availability {
+  id              Int              @id @default(autoincrement())
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  dayOfWeek       Int
+  startTime       String
+  endTime         String
+  createdAt       DateTime         @default(now())
+  @@unique([volunteerProfileId, dayOfWeek, startTime, endTime])
+}
+
+model Project {
+  id              Int              @id @default(autoincrement())
+  title           String
+  description     String
+  coverImage      String?
+  category        String
+  level           ProjectLevel
+  status          ProjectStatus
+  location        String
+  latitude        Float?
+  longitude       Float?
+  startDate       DateTime
+  endDate         DateTime
+  maxParticipants Int
+  minParticipants Int
+  requiredTrainingIds Int[]
+  pointsPerHour   Int              @default(10)
+  projectManagerId Int
+  projectManager  ProjectManagerProfile @relation(fields: [projectManagerId], references: [id])
+  requiredSkills  ProjectRequiredSkill[]
+  schedules       Schedule[]
+  applications    ProjectApplication[]
+  reviews         Review[]
+  monthlyReports  MonthlyReportProject[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ProjectRequiredSkill {
+  id              Int              @id @default(autoincrement())
+  projectId       Int
+  project         Project          @relation(fields: [projectId], references: [id])
+  skillId         Int
+  skill           Skill            @relation(fields: [skillId], references: [id])
+  minProficiency  Int              @default(1)
+  requiredCount   Int              @default(1)
+  createdAt       DateTime         @default(now())
+  @@unique([projectId, skillId])
+}
+
+model ProjectApplication {
+  id              Int              @id @default(autoincrement())
+  projectId       Int
+  project         Project          @relation(fields: [projectId], references: [id])
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  status          String           @default("PENDING")
+  appliedAt       DateTime         @default(now())
+  reviewedAt      DateTime?
+  @@unique([projectId, volunteerProfileId])
+}
+
+model Schedule {
+  id              Int              @id @default(autoincrement())
+  projectId       Int
+  project         Project          @relation(fields: [projectId], references: [id])
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  scheduledDate   DateTime
+  startTime       String
+  endTime         String
+  status          ScheduleStatus   @default(PENDING)
+  attendance      Attendance?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  @@unique([projectId, volunteerProfileId, scheduledDate, startTime])
+}
+
+model Attendance {
+  id                Int              @id @default(autoincrement())
+  scheduleId        Int              @unique
+  schedule          Schedule         @relation(fields: [scheduleId], references: [id])
+  volunteerProfileId Int
+  volunteerProfile  VolunteerProfile @relation("VolunteerAttendances", fields: [volunteerProfileId], references: [id])
+  checkInTime       DateTime?
+  checkOutTime      DateTime?
+  checkInLatitude   Float?
+  checkInLongitude  Float?
+  checkOutLatitude  Float?
+  checkOutLongitude Float?
+  serviceHours      Float            @default(0)
+  status            AttendanceStatus @default(PENDING)
+  pointsEarned      Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model PointsRecord {
+  id              Int              @id @default(autoincrement())
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  amount          Int
+  type            String
+  description     String
+  relatedEntityId Int?
+  relatedEntityType String?
+  createdAt       DateTime         @default(now())
+}
+
+model CreditRecord {
+  id              Int              @id @default(autoincrement())
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id])
+  amount          Int
+  reason          String
+  relatedEntityId Int?
+  relatedEntityType String?
+  createdAt       DateTime         @default(now())
+}
+
+model Training {
+  id              Int              @id @default(autoincrement())
+  title           String
+  description     String
+  content         String
+  category        String
+  level           ProjectLevel
+  durationMinutes Int
+  passScore       Int              @default(60)
+  examId          Int?
+  exam            Exam?            @relation(fields: [examId], references: [id])
+  trainingRecords TrainingRecord[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model TrainingRecord {
+  id              Int              @id @default(autoincrement())
+  trainingId      Int
+  training        Training         @relation(fields: [trainingId], references: [id])
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  status          TrainingStatus   @default(NOT_STARTED)
+  progress        Int              @default(0)
+  completedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  @@unique([trainingId, volunteerProfileId])
+}
+
+model Exam {
+  id              Int              @id @default(autoincrement())
+  title           String
+  description     String
+  totalScore      Int              @default(100)
+  passScore       Int              @default(60)
+  durationMinutes Int              @default(60)
+  questions       ExamQuestion[]
+  examRecords     ExamRecord[]
+  trainings       Training[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ExamQuestion {
+  id              Int              @id @default(autoincrement())
+  examId          Int
+  exam            Exam             @relation(fields: [examId], references: [id])
+  questionText    String
+  questionType    String
+  options         Json
+  correctAnswer   String
+  score           Int
+  orderIndex      Int
+  createdAt       DateTime         @default(now())
+}
+
+model ExamRecord {
+  id              Int              @id @default(autoincrement())
+  examId          Int
+  exam            Exam             @relation(fields: [examId], references: [id])
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  answers         Json
+  score           Int
+  status          ExamStatus
+  startedAt       DateTime
+  submittedAt     DateTime
+  createdAt       DateTime         @default(now())
+}
+
+model Review {
+  id              Int              @id @default(autoincrement())
+  projectId       Int
+  project         Project          @relation(fields: [projectId], references: [id])
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  managerId       Int
+  manager         ProjectManagerProfile @relation(fields: [managerId], references: [id])
+  rating          Int
+  comment         String
+  tags            String[]
+  createdAt       DateTime         @default(now())
+  @@unique([projectId, volunteerProfileId])
+}
+
+model Notification {
+  id              Int              @id @default(autoincrement())
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id])
+  type            NotificationType
+  title           String
+  content         String
+  relatedEntityId Int?
+  relatedEntityType String?
+  status          NotificationStatus @default(UNREAD)
+  createdAt       DateTime         @default(now())
+  readAt          DateTime?
+}
+
+model RefreshToken {
+  id              Int              @id @default(autoincrement())
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id])
+  token           String           @unique
+  expiresAt       DateTime
+  createdAt       DateTime         @default(now())
+}
+
+model PointsRule {
+  id              Int              @id @default(autoincrement())
+  name            String
+  description     String
+  points          Int
+  condition       Json
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ExchangeRule {
+  id              Int              @id @default(autoincrement())
+  name            String
+  description     String
+  pointsRequired  Int
+  reward          String
+  rewardImage     String?
+  stock           Int
+  isActive        Boolean          @default(true)
+  exchangeRecords ExchangeRecord[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ExchangeRecord {
+  id              Int              @id @default(autoincrement())
+  volunteerProfileId Int
+  volunteerProfile VolunteerProfile @relation(fields: [volunteerProfileId], references: [id])
+  exchangeRuleId  Int
+  exchangeRule    ExchangeRule     @relation(fields: [exchangeRuleId], references: [id])
+  pointsSpent     Int
+  status          String           @default("PENDING")
+  createdAt       DateTime         @default(now())
+}
+
+model CreditThreshold {
+  id              Int              @id @default(autoincrement())
+  name            String
+  description     String
+  minCreditScore  Int
+  restriction     String
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model MonthlyReport {
+  id              Int              @id @default(autoincrement())
+  reportMonth     String
+  totalVolunteers Int              @default(0)
+  totalProjects   Int              @default(0)
+  totalServiceHours Float          @default(0)
+  totalPointsDistributed Int       @default(0)
+  projects        MonthlyReportProject[]
+  status          ReportStatus     @default(PENDING)
+  exportedAt      DateTime?
+  filePath        String?
+  createdAt       DateTime         @default(now())
+  generatedAt     DateTime?
+}
+
+model MonthlyReportProject {
+  id              Int              @id @default(autoincrement())
+  monthlyReportId Int
+  monthlyReport   MonthlyReport    @relation(fields: [monthlyReportId], references: [id])
+  projectId       Int
+  project         Project          @relation(fields: [projectId], references: [id])
+  participantCount Int            @default(0)
+  serviceHours    Float            @default(0)
+  pointsDistributed Int           @default(0)
+  createdAt       DateTime         @default(now())
+}
+
+model SystemSettings {
+  id              Int              @id @default(autoincrement())
+  key             String           @unique
+  value           Json
+  description     String?
+  updatedAt       DateTime         @updatedAt
+}
