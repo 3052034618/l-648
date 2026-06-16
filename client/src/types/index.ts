@@ -472,6 +472,7 @@ export interface ExamAnswer {
 export interface ExamSubmitData {
   examId: number
   answers: ExamAnswer[]
+  startedAt: string
 }
 
 export interface ReviewData {

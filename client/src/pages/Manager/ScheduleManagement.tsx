@@ -139,20 +139,30 @@ const ScheduleManagement: React.FC = () => {
         startDate: values.dateRange[0].format('YYYY-MM-DD'),
         endDate: values.dateRange[1].format('YYYY-MM-DD'),
       })
-      message.success(`成功生成 ${result.length} 条排班`)
-      if (autoConfirm) {
-        await Promise.all(
-          result.map((s) =>
-            scheduleApi.updateSchedule(s.id, { status: 'CONFIRMED' as ScheduleStatus })
-          )
-        )
-        message.success('已自动确认所有排班')
+      const schedules = Array.isArray(result) ? result : (result as any).schedules || []
+      message.success(`成功生成 ${schedules.length} 条排班`)
+      if (autoConfirm && schedules.length > 0) {
+        let confirmedCount = 0
+        let failedCount = 0
+        for (const s of schedules) {
+          try {
+            await scheduleApi.updateSchedule(s.id, { status: 'CONFIRMED' as ScheduleStatus })
+            confirmedCount++
+          } catch {
+            failedCount++
+          }
+        }
+        if (failedCount === 0) {
+          message.success(`已自动确认全部 ${confirmedCount} 条排班`)
+        } else {
+          message.warning(`已确认 ${confirmedCount} 条，${failedCount} 条确认失败`)
+        }
       }
       setGenerateModalVisible(false)
       generateForm.resetFields()
       fetchSchedules()
-    } catch (error) {
-      message.error('生成排班失败')
+    } catch (error: any) {
+      message.error(error?.response?.data?.error || error?.message || '生成排班失败，请稍后重试')
     } finally {
       setGenerating(false)
     }

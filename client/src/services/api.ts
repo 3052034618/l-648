@@ -207,8 +207,8 @@ export const scheduleApi = {
     return handleResponse(response)
   },
 
-  generateSchedules: async (params: ScheduleGenerateParams): Promise<Schedule[]> => {
-    const response = await api.post<ApiResponse<Schedule[]>>('/schedules/generate', params)
+  generateSchedules: async (params: ScheduleGenerateParams): Promise<any> => {
+    const response = await api.post<ApiResponse<any>>('/schedules/generate', params)
     return handleResponse(response)
   },
 
@@ -339,7 +339,7 @@ export const examApi = {
   },
 
   getMyExamRecords: async (): Promise<ExamRecord[]> => {
-    const response = await api.get<ApiResponse<ExamRecord[]>>('/exams/my')
+    const response = await api.get<ApiResponse<ExamRecord[]>>('/exams/me/records')
     return handleResponse(response)
   },
 }
@@ -550,12 +550,13 @@ export const adminApi = {
   },
 
   getMonthlyReports: async (params?: PaginationParams): Promise<PaginationResult<MonthlyReport>> => {
-    const response = await api.get<ApiResponse<PaginationResult<MonthlyReport>>>('/admin/reports', { params })
+    const response = await api.get<ApiResponse<PaginationResult<MonthlyReport>>>('/reports', { params })
     return handleResponse(response)
   },
 
   generateMonthlyReport: async (reportMonth: string): Promise<MonthlyReport> => {
-    const response = await api.post<ApiResponse<MonthlyReport>>('/admin/reports', { reportMonth })
+    const [year, month] = reportMonth.split('-').map(Number)
+    const response = await api.post<ApiResponse<MonthlyReport>>('/reports/generate', { year, month })
     return handleResponse(response)
   },
 

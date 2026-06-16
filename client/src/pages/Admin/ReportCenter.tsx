@@ -41,6 +41,7 @@ import type { MonthlyReport, PaginationResult, StatisticsData } from '../../type
 
 const { Option } = Select
 const { TabPane } = Tabs
+const BASE_URL = '/api'
 
 const ReportCenter: React.FC = () => {
   const [loading, setLoading] = useState(false)
@@ -66,26 +67,9 @@ const ReportCenter: React.FC = () => {
         total: response.total,
       })
     } catch (error) {
-      message.error('获取报表列表失败')
-      const mockReports: MonthlyReport[] = Array.from({ length: 12 }, (_, i) => {
-        const month = dayjs().subtract(i, 'month')
-        return {
-          id: i + 1,
-          reportMonth: month.format('YYYY-MM'),
-          totalVolunteers: 100 + i * 15,
-          totalProjects: 20 + i * 2,
-          totalServiceHours: 5000 + i * 300,
-          totalPointsDistributed: 25000 + i * 1500,
-          projects: [],
-          status: ['GENERATED', 'GENERATED', 'EXPORTED', 'PENDING'][i % 4] as any,
-          createdAt: month.endOf('month').toISOString(),
-          generatedAt: month.endOf('month').toISOString(),
-          exportedAt: i % 4 === 2 ? month.endOf('month').add(1, 'day').toISOString() : undefined,
-          filePath: i % 4 === 2 ? `/reports/${month.format('YYYY-MM')}.xlsx` : undefined,
-        }
-      })
-      setReports(mockReports.slice((page - 1) * pageSize, page * pageSize))
-      setPagination({ current: page, pageSize, total: mockReports.length })
+      console.error('Failed to fetch reports:', error)
+      setReports([])
+      setPagination({ current: 1, pageSize: 10, total: 0 })
     } finally {
       setLoading(false)
     }
@@ -96,22 +80,7 @@ const ReportCenter: React.FC = () => {
       const data = await statisticsApi.getStatistics()
       setStatistics(data)
     } catch (error) {
-      setStatistics({
-        totalVolunteers: 528,
-        totalProjects: 86,
-        totalServiceHours: 28560,
-        totalPointsDistributed: 142800,
-        ongoingProjects: 23,
-        pendingApplications: 45,
-        todayAttendance: 67,
-        averageRating: 4.7,
-        volunteerCount: 528,
-        projectCount: 86,
-        newVolunteersThisMonth: 42,
-        activeProjects: 23,
-        completedProjects: 63,
-        attendanceRate: 92.5,
-      })
+      console.error('Failed to fetch statistics:', error)
     }
   }
 
@@ -129,7 +98,7 @@ const ReportCenter: React.FC = () => {
       fetchReports(pagination.current, pagination.pageSize)
     } catch (error: any) {
       console.error('Failed to generate report:', error)
-      message.error(error?.response?.data?.message || error?.message || '生成报表失败，请稍后重试')
+      message.error(error?.response?.data?.error || error?.message || '生成报表失败，请稍后重试')
     } finally {
       setGenerating(false)
     }
@@ -137,15 +106,33 @@ const ReportCenter: React.FC = () => {
 
   const handleExportReport = async (id: number) => {
     try {
-      const result = await adminApi.exportReport(id)
-      message.success('导出成功')
-      if (result.filePath) {
-        window.open(result.filePath, '_blank')
-      }
+      const token = localStorage.getItem('token')
+      const link = document.createElement('a')
+      link.href = `${BASE_URL}/reports/${id}/export${token ? `?token=${token}` : ''}`
+      link.download = `report-${id}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      message.success('开始下载报表文件')
       fetchReports(pagination.current, pagination.pageSize)
     } catch (error: any) {
       console.error('Failed to export report:', error)
-      message.error(error?.response?.data?.message || error?.message || '导出失败，请稍后重试')
+      message.error('导出失败，请稍后重试')
+    }
+  }
+
+  const handleDownloadReport = async (id: number) => {
+    try {
+      const token = localStorage.getItem('token')
+      const link = document.createElement('a')
+      link.href = `${BASE_URL}/reports/${id}/export${token ? `?token=${token}` : ''}`
+      link.download = `report-${id}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error: any) {
+      console.error('Failed to download report:', error)
+      message.error('下载失败，请稍后重试')
     }
   }
 
@@ -228,7 +215,7 @@ const ReportCenter: React.FC = () => {
             </Button>
           )}
           {record.status === 'EXPORTED' && (
-            <Button type="link" icon={<DownloadOutlined />} onClick={() => message.success('开始下载')}>
+            <Button type="link" icon={<DownloadOutlined />} onClick={() => handleDownloadReport(record.id)}>
               下载
             </Button>
           )}

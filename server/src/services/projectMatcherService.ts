@@ -443,7 +443,8 @@ export async function matchVolunteersForProject(projectId: number, limit: number
           missingTrainings: trainingMatch.missingTrainings,
           creditScore: volunteer.user.creditScore,
           historicalRating: Math.round(historicalRating * 100) / 100,
-          activityScore: Math.round(activityScore * 100) / 100
+          activityScore: Math.round(activityScore * 100) / 100,
+          reasons: []
         },
         volunteer
       })

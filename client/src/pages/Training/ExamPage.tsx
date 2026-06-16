@@ -3,7 +3,6 @@ import { Row, Col, Card, Button, Typography, Spin, Radio, Checkbox, Input, Progr
 import { ArrowLeftOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, SafetyCertificateOutlined, FileTextOutlined } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
-import dayjs from 'dayjs'
 import { examApi } from '../../services/api'
 import type { Exam, ExamQuestion, ExamRecord, ExamAnswer } from '../../types'
 
@@ -23,6 +22,7 @@ const ExamPage: React.FC = () => {
   const [remainingTime, setRemainingTime] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [startedAt, setStartedAt] = useState<string>('')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -41,105 +41,7 @@ const ExamPage: React.FC = () => {
         setRemainingTime(examResult.durationMinutes * 60)
       } catch (error) {
         console.error('Failed to fetch exam:', error)
-        const mockExam: Exam = {
-          id: Number(id),
-          title: '志愿者服务规范考试',
-          description: '本次考试旨在检验您对志愿者服务规范的掌握程度，包括服务礼仪、安全规范、服务职责等内容。',
-          totalScore: 100,
-          passScore: 70,
-          durationMinutes: 30,
-          questions: [
-            {
-              id: 1,
-              examId: Number(id),
-              questionText: '志愿者在服务过程中，以下哪种做法是正确的？',
-              questionType: 'SINGLE_CHOICE',
-              options: {
-                A: '着装随意，不佩戴统一标识',
-                B: '用语文明，态度热情',
-                C: '擅自泄露服务对象隐私',
-                D: '对服务对象的需求置之不理'
-              },
-              correctAnswer: 'B',
-              score: 10,
-              orderIndex: 1,
-              createdAt: ''
-            },
-            {
-              id: 2,
-              examId: Number(id),
-              questionText: '志愿者服务中，安全规范包括以下哪些内容？（多选）',
-              questionType: 'MULTIPLE_CHOICE',
-              options: {
-                A: '了解项目安全注意事项',
-                B: '掌握基本的应急处理方法',
-                C: '保持通讯畅通',
-                D: '独自前往危险区域'
-              },
-              correctAnswer: 'A,B,C',
-              score: 20,
-              orderIndex: 2,
-              createdAt: ''
-            },
-            {
-              id: 3,
-              examId: Number(id),
-              questionText: '请简述志愿者的基本服务职责。',
-              questionType: 'TEXT',
-              options: {},
-              correctAnswer: '1. 按时到岗，不擅自离岗；2. 认真完成分配的任务；3. 遇到问题及时向负责人汇报；4. 尊重服务对象的意愿和隐私；5. 保持良好的服务态度。',
-              score: 30,
-              orderIndex: 3,
-              createdAt: ''
-            },
-            {
-              id: 4,
-              examId: Number(id),
-              questionText: '志愿者在服务过程中与服务对象发生意见分歧时，应该：',
-              questionType: 'SINGLE_CHOICE',
-              options: {
-                A: '与服务对象争论，坚持自己的观点',
-                B: '耐心倾听，尊重服务对象的意见，必要时寻求负责人协调',
-                C: '直接拒绝继续服务',
-                D: '向其他志愿者抱怨'
-              },
-              correctAnswer: 'B',
-              score: 10,
-              orderIndex: 4,
-              createdAt: ''
-            },
-            {
-              id: 5,
-              examId: Number(id),
-              questionText: '以下哪些行为违反了志愿者服务规范？（多选）',
-              questionType: 'MULTIPLE_CHOICE',
-              options: {
-                A: '按时到岗，认真完成任务',
-                B: '利用志愿服务谋取个人利益',
-                C: '尊重服务对象的隐私',
-                D: '擅自接受服务对象的贵重礼品'
-              },
-              correctAnswer: 'B,D',
-              score: 20,
-              orderIndex: 5,
-              createdAt: ''
-            },
-            {
-              id: 6,
-              examId: Number(id),
-              questionText: '请结合自身经历，谈谈你对志愿服务精神的理解。',
-              questionType: 'TEXT',
-              options: {},
-              correctAnswer: '志愿服务精神包括奉献、友爱、互助、进步。奉献是指不计报酬、不求名利；友爱是指尊重他人、平等待人；互助是指互相帮助、互相扶持；进步是指在服务中提升自己、促进社会进步。',
-              score: 10,
-              orderIndex: 6,
-              createdAt: ''
-            }
-          ],
-          createdAt: ''
-        }
-        setExam(mockExam)
-        setRemainingTime(30 * 60)
+        message.error('获取考试信息失败')
       } finally {
         setLoading(false)
       }
@@ -185,23 +87,11 @@ const ExamPage: React.FC = () => {
     try {
       const record = await examApi.startExam(exam.id)
       setExamRecord(record)
+      setStartedAt(record.startedAt || new Date().toISOString())
       setExamStarted(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start exam:', error)
-      setExamRecord({
-        id: 1,
-        examId: exam.id,
-        exam: exam,
-        volunteerProfileId: 1,
-        answers: {},
-        score: 0,
-        status: 'NOT_TAKEN',
-        startedAt: dayjs().toISOString(),
-        submittedAt: '',
-        createdAt: ''
-      })
-      setExamStarted(true)
-      message.success('考试开始，请认真作答')
+      message.error(error?.response?.data?.error || error?.message || '开始考试失败，请稍后重试')
     }
   }
 
@@ -210,32 +100,6 @@ const ExamPage: React.FC = () => {
       ...prev,
       [questionId]: value
     }))
-  }
-
-  const calculateScore = () => {
-    if (!exam) return 0
-    let totalScore = 0
-    exam.questions.forEach(question => {
-      const userAnswer = answers[question.id]
-      if (!userAnswer) return
-
-      if (question.questionType === 'SINGLE_CHOICE') {
-        if (userAnswer === question.correctAnswer) {
-          totalScore += question.score
-        }
-      } else if (question.questionType === 'MULTIPLE_CHOICE') {
-        const correctAnswers = question.correctAnswer.split(',').sort()
-        const userAnswers = Array.isArray(userAnswer) ? userAnswer.sort() : userAnswer.split(',').sort()
-        if (JSON.stringify(correctAnswers) === JSON.stringify(userAnswers)) {
-          totalScore += question.score
-        }
-      } else if (question.questionType === 'TEXT') {
-        if (typeof userAnswer === 'string' && userAnswer.length > 20) {
-          totalScore += Math.round(question.score * 0.8)
-        }
-      }
-    })
-    return totalScore
   }
 
   const handleSubmit = async () => {
@@ -249,7 +113,11 @@ const ExamPage: React.FC = () => {
         answer: Array.isArray(answer) ? answer.join(',') : answer
       }))
 
-      const result = await examApi.submitExam(exam.id, { examId: exam.id, answers: examAnswers })
+      const result = await examApi.submitExam(exam.id, {
+        examId: exam.id,
+        answers: examAnswers,
+        startedAt: startedAt || examRecord.startedAt || new Date().toISOString()
+      })
 
       setExamRecord(prev => prev ? {
         ...prev,
@@ -262,7 +130,7 @@ const ExamPage: React.FC = () => {
       message.success(passed ? `恭喜！您已通过考试，得分：${result.score}分` : `很遗憾，您未通过考试，得分：${result.score}分`)
     } catch (error: any) {
       console.error('Failed to submit exam:', error)
-      message.error(error?.response?.data?.message || error?.message || '考试提交失败，请稍后重试')
+      message.error(error?.response?.data?.error || error?.message || '考试提交失败，请稍后重试')
     } finally {
       setSubmitting(false)
     }

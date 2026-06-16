@@ -28,6 +28,36 @@ router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) =
   res.status(result.success ? 200 : 400).json(result)
 })
 
+router.get('/me/records', authenticate, requireVolunteer, async (req: AuthenticatedRequest, res: Response) => {
+  const profile = await prisma.volunteerProfile.findUnique({
+    where: { userId: req.user!.id }
+  })
+
+  if (!profile) {
+    return res.status(404).json({
+      success: false,
+      error: '志愿者资料不存在'
+    })
+  }
+
+  const result = await getMyExamRecords(profile.id)
+  res.status(result.success ? 200 : 400).json(result)
+})
+
+router.get('/records/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+
+  if (isNaN(id)) {
+    return res.status(400).json({
+      success: false,
+      error: '无效的考试记录ID'
+    })
+  }
+
+  const result = await getExamRecord(id)
+  res.status(result.success ? 200 : 400).json(result)
+})
+
 router.post('/', authenticate, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   const { title, description, totalScore, passScore, durationMinutes } = req.body
 
@@ -229,36 +259,6 @@ router.post('/:id/submit', authenticate, requireVolunteer, async (req: Authentic
   }
 
   const result = await submitExam(id, profile.id, answers, new Date(startedAt))
-  res.status(result.success ? 200 : 400).json(result)
-})
-
-router.get('/records/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
-  const id = parseInt(req.params.id)
-
-  if (isNaN(id)) {
-    return res.status(400).json({
-      success: false,
-      error: '无效的考试记录ID'
-    })
-  }
-
-  const result = await getExamRecord(id)
-  res.status(result.success ? 200 : 400).json(result)
-})
-
-router.get('/me/records', authenticate, requireVolunteer, async (req: AuthenticatedRequest, res: Response) => {
-  const profile = await prisma.volunteerProfile.findUnique({
-    where: { userId: req.user!.id }
-  })
-
-  if (!profile) {
-    return res.status(404).json({
-      success: false,
-      error: '志愿者资料不存在'
-    })
-  }
-
-  const result = await getMyExamRecords(profile.id)
   res.status(result.success ? 200 : 400).json(result)
 })
 

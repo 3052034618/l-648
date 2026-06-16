@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { AuthenticatedRequest } from '../types'
 import { authenticate, requireAdmin } from '../middleware/auth'
+import jwt from 'jsonwebtoken'
 import * as fs from 'fs'
 import {
   generateMonthlyReport,
@@ -10,6 +11,22 @@ import {
 } from '../services/reportService'
 
 const router = Router()
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+
+const authenticateExport = (req: any, res: any, next: any) => {
+  const token = req.query.token || req.headers.authorization?.replace('Bearer ', '')
+  if (!token) {
+    return res.status(401).json({ success: false, error: '未提供认证令牌' })
+  }
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET)
+    req.user = decoded
+    next()
+  } catch {
+    return res.status(401).json({ success: false, error: '认证令牌无效' })
+  }
+}
 
 router.post('/generate', authenticate, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   const { year, month } = req.body
@@ -68,7 +85,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: AuthenticatedRequest,
   res.status(result.success ? 200 : 400).json(result)
 })
 
-router.get('/:id/export', authenticate, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id/export', authenticateExport, async (req: AuthenticatedRequest, res: Response) => {
   const reportId = parseInt(req.params.id)
 
   if (isNaN(reportId)) {

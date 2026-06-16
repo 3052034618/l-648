@@ -21,7 +21,8 @@ import {
   ThunderboltOutlined,
   BulbOutlined,
   CheckCircleOutlined,
-  FilterOutlined
+  FilterOutlined,
+  LockOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -321,14 +322,19 @@ const ProjectRecommendation: React.FC = () => {
           {recommendations.map((project) => (
             <Col xs={24} sm={12} xl={8} key={project.id}>
               <Card
-                hoverable
+                hoverable={project.canApply}
                 style={{
                   borderRadius: 12,
                   border: 'none',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                  transition: 'all 0.3s'
+                  transition: 'all 0.3s',
+                  opacity: project.canApply ? 1 : 0.85
                 }}
-                onClick={() => navigate(`/projects/${project.id}`)}
+                onClick={() => {
+                  if (project.canApply) {
+                    navigate(`/projects/${project.id}`)
+                  }
+                }}
               >
                 <div style={{ position: 'relative' }}>
                   <div
@@ -347,7 +353,9 @@ const ProjectRecommendation: React.FC = () => {
                   <div
                     style={{
                       height: 120,
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: project.canApply
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        : 'linear-gradient(135deg, #bfbfbf 0%, #8c8c8c 100%)',
                       borderRadius: '12px 12px 0 0',
                       display: 'flex',
                       alignItems: 'center',
@@ -357,13 +365,18 @@ const ProjectRecommendation: React.FC = () => {
                       margin: '-24px -24px 16px -24px'
                     }}
                   >
-                    <StarOutlined />
+                    {project.canApply ? <StarOutlined /> : <LockOutlined />}
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <Tag color={levelColors[project.level]}>
-                    {levelText[project.level]}
-                  </Tag>
+                  <Space>
+                    <Tag color={levelColors[project.level]}>
+                      {levelText[project.level]}
+                    </Tag>
+                    {!project.canApply && (
+                      <Tag color="error" icon={<LockOutlined />}>暂不可报名</Tag>
+                    )}
+                  </Space>
                   <Tag color="blue">{project.category}</Tag>
                 </div>
                 <Title level={5} style={{ marginBottom: 8, fontSize: 16 }} ellipsis>
@@ -372,11 +385,11 @@ const ProjectRecommendation: React.FC = () => {
                 <Text type="secondary" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 12 }}>
                   {project.description}
                 </Text>
-                <div style={{ marginBottom: 12, padding: 12, background: '#f6ffed', borderRadius: 8 }}>
+                <div style={{ marginBottom: 12, padding: 12, background: project.canApply ? '#f6ffed' : '#fff2e8', borderRadius: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <StarOutlined style={{ color: '#52c41a' }} />
+                    <StarOutlined style={{ color: project.canApply ? '#52c41a' : '#fa8c16' }} />
                     <Text style={{ fontSize: 13, fontWeight: 500 }}>
-                      匹配原因
+                      {project.canApply ? '匹配原因' : '暂不可报名原因'}
                     </Text>
                   </div>
                   {project.matchReasons.map((reason, index) => (
@@ -405,9 +418,15 @@ const ProjectRecommendation: React.FC = () => {
                         {project.pointsPerHour} 积分/小时
                       </Text>
                     </div>
-                    <Button type="link" style={{ padding: 0 }} icon={<ArrowRightOutlined />}>
-                      查看详情
-                    </Button>
+                    {project.canApply ? (
+                      <Button type="link" style={{ padding: 0 }} icon={<ArrowRightOutlined />}>
+                        查看详情
+                      </Button>
+                    ) : (
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        不符合报名条件
+                      </Text>
+                    )}
                   </div>
                 </Space>
               </Card>
