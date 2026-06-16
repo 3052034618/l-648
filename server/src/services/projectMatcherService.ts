@@ -429,6 +429,7 @@ export async function matchVolunteersForProject(projectId: number, limit: number
       const activityScore = await getActivityScore(volunteer.id)
 
       const matchScore = skillMatch.score * 0.4 + timeMatch.score * 0.3 + historicalRating * 0.2 + activityScore * 0.1
+      const canApply = trainingMatch.matched && creditMatch
 
       matchResults.push({
         id: volunteer.id,
@@ -437,6 +438,7 @@ export async function matchVolunteersForProject(projectId: number, limit: number
         timeMatch: Math.round(timeMatch.score * 100) / 100,
         trainingMatch: trainingMatch.matched,
         creditMatch,
+        canApply,
         details: {
           skillMatches: skillMatch.details,
           timeOverlap: timeMatch.overlapDays,

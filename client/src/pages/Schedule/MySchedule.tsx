@@ -15,7 +15,8 @@ import {
   Modal,
   Descriptions,
   Divider,
-  Statistic
+  Statistic,
+  message
 } from 'antd'
 import {
   CalendarOutlined,
@@ -23,7 +24,6 @@ import {
   EnvironmentOutlined,
   ProjectOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   QrcodeOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined
@@ -31,8 +31,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
-import { scheduleApi, attendanceApi } from '../../api'
-import { useAuthStore } from '../../store'
+import { scheduleApi } from '../../services/api'
 import type { Schedule } from '../../types'
 
 const { Title, Text } = Typography
@@ -56,32 +55,8 @@ const MySchedule: React.FC = () => {
       setSchedules(result.items)
     } catch (error) {
       console.error('Failed to fetch schedules:', error)
-      const mockSchedules: Schedule[] = []
-      const baseDate = dayjs()
-      for (let i = -5; i <= 10; i++) {
-        const date = baseDate.add(i, 'day')
-        if (i !== 0 && i !== 3 && i !== 7) continue
-        mockSchedules.push({
-          id: i + 100,
-          projectId: 1,
-          scheduledDate: date.format('YYYY-MM-DD'),
-          startTime: i % 2 === 0 ? '09:00' : '14:00',
-          endTime: i % 2 === 0 ? '12:00' : '17:00',
-          status: i < 0 ? 'CONFIRMED' : i === 0 ? 'CONFIRMED' : 'PENDING',
-          volunteerProfileId: 1,
-          project: {
-            id: 1,
-            title: i % 2 === 0 ? '社区环保志愿活动' : '图书馆志愿服务',
-            category: i % 2 === 0 ? '环保' : '教育',
-            location: i % 2 === 0 ? '北京市朝阳区' : '北京市海淀区',
-            status: 'ONGOING'
-          } as any,
-          volunteerProfile: {} as any,
-          createdAt: date.format('YYYY-MM-DD'),
-          updatedAt: date.format('YYYY-MM-DD')
-        })
-      }
-      setSchedules(mockSchedules)
+      message.error('获取排班列表失败，请稍后重试')
+      setSchedules([])
     } finally {
       setLoading(false)
     }
@@ -334,7 +309,6 @@ const MySchedule: React.FC = () => {
               {calendarDays.map((dayData, index) => {
                 const isCurrentMonth = dayData.date.isSame(selectedDate, 'month')
                 const isToday = dayData.date.isSame(dayjs(), 'day')
-                const hasSchedule = dayData.schedules.length > 0
 
                 return (
                   <div

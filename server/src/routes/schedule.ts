@@ -56,8 +56,74 @@ router.post('/generate', authenticate, requireProjectManager, async (req: Authen
 })
 
 router.get('/me', authenticate, requireVolunteer, async (req: AuthenticatedRequest, res: Response) => {
-  const result = await getMySchedules(req.user!.id)
-  res.status(result.success ? 200 : 400).json(result)
+  try {
+    const page = req.query.page ? parseInt(req.query.page as string) : 1
+    const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 20
+
+    const volunteerProfile = await prisma.volunteerProfile.findUnique({
+      where: { userId: req.user!.id }
+    })
+
+    if (!volunteerProfile) {
+      return res.status(404).json({
+        success: false,
+        error: '志愿者资料不存在'
+      })
+    }
+
+    const where = { volunteerProfileId: volunteerProfile.id }
+
+    const [schedules, total] = await Promise.all([
+      prisma.schedule.findMany({
+        where,
+        include: {
+          project: {
+            select: {
+              id: true,
+              title: true,
+              category: true,
+              location: true,
+              latitude: true,
+              longitude: true,
+              status: true,
+              pointsPerHour: true
+            }
+          },
+          volunteerProfile: {
+            include: {
+              user: {
+                select: { id: true, realName: true, username: true }
+              }
+            }
+          },
+          attendance: true
+        },
+        orderBy: [
+          { scheduledDate: 'desc' },
+          { startTime: 'desc' }
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      }),
+      prisma.schedule.count({ where })
+    ])
+
+    res.json({
+      success: true,
+      data: {
+        items: schedules,
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize)
+      }
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: '获取我的排班失败'
+    })
+  }
 })
 
 router.get('/project/:projectId', authenticate, async (req: AuthenticatedRequest, res: Response) => {

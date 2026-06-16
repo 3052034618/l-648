@@ -166,7 +166,7 @@ export const projectApi = {
   },
 
   getMyProjects: async (params?: PaginationParams): Promise<PaginationResult<Project>> => {
-    const response = await api.get<ApiResponse<PaginationResult<Project>>>('/projects/my', { params })
+    const response = await api.get<ApiResponse<PaginationResult<Project>>>('/projects/me/managed', { params })
     return handleResponse(response)
   },
 
@@ -223,7 +223,7 @@ export const scheduleApi = {
   },
 
   getMySchedules: async (params?: PaginationParams): Promise<PaginationResult<Schedule>> => {
-    const response = await api.get<ApiResponse<PaginationResult<Schedule>>>('/schedules/my', { params })
+    const response = await api.get<ApiResponse<PaginationResult<Schedule>>>('/schedules/me', { params })
     return handleResponse(response)
   },
 }

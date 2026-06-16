@@ -28,7 +28,7 @@ import dayjs from 'dayjs'
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { attendanceApi, scheduleApi } from '../../api'
+import { attendanceApi, scheduleApi } from '../../services/api'
 import { useAuthStore } from '../../store'
 import type { Schedule, Attendance } from '../../types'
 
@@ -148,34 +148,8 @@ const CheckIn: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
-      setSchedule({
-        id: 1,
-        projectId: 1,
-        scheduledDate: dayjs().format('YYYY-MM-DD'),
-        startTime: '09:00',
-        endTime: '12:00',
-        status: 'CONFIRMED',
-        volunteerProfileId: 1,
-        project: {
-          id: 1,
-          title: '社区环保志愿活动',
-          category: '环保',
-          level: 'BASIC',
-          status: 'ONGOING',
-          location: '北京市朝阳区',
-          latitude: 39.9042,
-          longitude: 116.4074,
-          startDate: dayjs().format('YYYY-MM-DD'),
-          endDate: dayjs().add(6, 'month').format('YYYY-MM-DD'),
-          maxParticipants: 50,
-          minParticipants: 10,
-          pointsPerHour: 10,
-          projectManagerId: 1
-        } as any,
-        volunteerProfile: {} as any,
-        createdAt: dayjs().format('YYYY-MM-DD'),
-        updatedAt: dayjs().format('YYYY-MM-DD')
-      })
+      message.error('获取排班信息失败，请稍后重试')
+      setSchedule(null)
     } finally {
       setLoading(false)
     }

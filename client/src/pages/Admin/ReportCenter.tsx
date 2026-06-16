@@ -107,32 +107,81 @@ const ReportCenter: React.FC = () => {
   const handleExportReport = async (id: number) => {
     try {
       const token = localStorage.getItem('token')
+      const response = await fetch(`${BASE_URL}/reports/${id}/export${token ? `?token=${token}` : ''}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: '导出失败' }))
+        throw new Error(errorData.error || `导出失败 (${response.status})`)
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = `${BASE_URL}/reports/${id}/export${token ? `?token=${token}` : ''}`
-      link.download = `report-${id}.xlsx`
+      link.href = url
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let fileName = `report-${id}.xlsx`
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (match && match[1]) {
+          fileName = match[1].replace(/['"]/g, '')
+        }
+      }
+      link.download = fileName
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      message.success('开始下载报表文件')
+      window.URL.revokeObjectURL(url)
+
+      message.success('报表文件下载成功')
       fetchReports(pagination.current, pagination.pageSize)
     } catch (error: any) {
       console.error('Failed to export report:', error)
-      message.error('导出失败，请稍后重试')
+      message.error(error?.message || '导出失败，请稍后重试')
     }
   }
 
   const handleDownloadReport = async (id: number) => {
     try {
       const token = localStorage.getItem('token')
+      const response = await fetch(`${BASE_URL}/reports/${id}/export${token ? `?token=${token}` : ''}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: '下载失败' }))
+        throw new Error(errorData.error || `下载失败 (${response.status})`)
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = `${BASE_URL}/reports/${id}/export${token ? `?token=${token}` : ''}`
-      link.download = `report-${id}.xlsx`
+      link.href = url
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let fileName = `report-${id}.xlsx`
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (match && match[1]) {
+          fileName = match[1].replace(/['"]/g, '')
+        }
+      }
+      link.download = fileName
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      message.success('文件下载成功')
     } catch (error: any) {
       console.error('Failed to download report:', error)
-      message.error('下载失败，请稍后重试')
+      message.error(error?.message || '下载失败，请稍后重试')
     }
   }
 

@@ -427,34 +427,36 @@ export async function submitExam(examId: number, volunteerProfileId: number, ans
 
     for (const question of exam.questions) {
       const userAnswer = answers.find(a => a.questionId === question.id)
-      if (!userAnswer) continue
+      if (!userAnswer || !userAnswer.answer) continue
 
-      const correctAnswers = question.correctAnswer.split(',').sort()
-      const userAnswers = userAnswer.answer.split(',').sort()
+      const type = question.questionType
+      const isSingle = type === 'SINGLE' || type === 'SINGLE_CHOICE' || type === 'JUDGE'
+      const isMultiple = type === 'MULTIPLE' || type === 'MULTIPLE_CHOICE'
 
-      if (question.questionType === 'SINGLE' || question.questionType === 'JUDGE') {
+      if (isSingle) {
         if (question.correctAnswer === userAnswer.answer) {
           totalScore += question.score
         }
-      } else if (question.questionType === 'MULTIPLE') {
-        const correctCount = correctAnswers.length
-        let matchCount = 0
+      } else if (isMultiple) {
+        const correctAnswers = question.correctAnswer.split(',').map(s => s.trim()).sort()
+        const userAnswers = userAnswer.answer.split(',').map(s => s.trim()).filter(s => s).sort()
+
+        if (userAnswers.length === 0) continue
+
+        let hasWrongAnswer = false
+        let correctCount = 0
 
         for (const ua of userAnswers) {
           if (correctAnswers.includes(ua)) {
-            matchCount++
-          }
-        }
-
-        for (const ua of userAnswers) {
-          if (!correctAnswers.includes(ua)) {
-            matchCount = 0
+            correctCount++
+          } else {
+            hasWrongAnswer = true
             break
           }
         }
 
-        if (matchCount > 0) {
-          totalScore += Math.floor((matchCount / correctCount) * question.score)
+        if (!hasWrongAnswer && correctCount > 0) {
+          totalScore += Math.floor((correctCount / correctAnswers.length) * question.score)
         }
       }
     }
